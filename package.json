@@ -13,7 +13,7 @@
     "start": "nodemon src/index.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Vikas Yadav",
   "license": "ISC",
   "description": ""
 }
