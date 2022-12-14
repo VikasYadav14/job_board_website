@@ -15,7 +15,7 @@ const studentModel = new mongoose.Schema({
     },
     subject:{
         type:String,
-        enum:['Hindi','English','Maths','Science'],
+        enum:['hindi','english','maths','science'],
         required:true
     },
     marks:{
