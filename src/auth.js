@@ -1,58 +1,90 @@
 const jwt = require('jsonwebtoken');
-const studentModel = require('./student/schema');
+const applicationModel = require('./models/applicationModel');
+const jobPostModel = require('./models/jobPostModel');
+const userModel = require('./models/userModel');
 
 async function authentication(req, res, next) {
   try {
-    const token = req.headers['x-api-key'];
+    let token = req.headers['authorization'];
+    token = token.split(' ');
 
-    const decodedToken = jwt.verify(
-      token,
-      'secret key given by Vikas',
-      (error, done) => {
-        if (error)
-          return res
-            .status(500)
-            .send({ status: false, message: 'token is invalid' });
-        return done;
-      }
-    );
-    req.teacherId = decodedToken.teacherId;
+    const decodedToken = jwt.verify(token[1], 'secret key given by Vikas');
+    req.body.logEmail = decodedToken.email
+    req.body.Id = decodedToken.Id
     next();
   } catch (error) {
-    return res.status(500).send({ status: false, message: error.message });
+    if (error.message == "invalid token") return res.status(403).send({ message: "token is invalid" });
+
+    if (error.message == "jwt expired") return res.status(404).send({ message: "Please Login once again, the token has expired" })
+
+    if (error.message == "invalid signature") return res.status(403).send({ message: "token is invalid" })
+
+    return res.status(500).send({ message: error.message });
   }
 }
 
-async function authorization(req, res, next) {
+async function recAuthorization(req, res, next) {
   try {
-    const studentId = req.params.studentId;
-    const teacherId = req.teacherId;
+    const { jobId } = req.params
+    const { Id } = req.body;
 
-    const check = await studentModel.findById(studentId);
+    const check = await jobPostModel.findById({ _id: jobId });
     if (!check)
-      return res.status(400).send({ message: 'student is not present' });
+      return res.status(400).send({ message: 'post is not present' });
 
-    if (check.teacherId != teacherId)
+    if (check.userId != Id)
       return res
         .status(400)
         .send({ message: 'You have not permission to change' });
     next();
   } catch (error) {
-    return res.status(500).send({ status: false, message: error.message });
+    return res.status(500).send({ message: error.message });
   }
 }
 
-function isValidEmail(email) {
-  const emailRegex = new RegExp(
-    /^[A-Za-z0-9_!#$%&'*+\/=?`{|}~^.-]+@[A-Za-z0-9.-]+$/,
-    'gm'
-  );
-  return emailRegex.test(email);
+async function appAuthorization(req, res, next) {
+  try {
+    const { applicationId } = req.params
+    const { Id } = req.body;
+
+    const check = await applicationModel.findById(applicationId);
+    if (!check)
+      return res.status(400).send({ message: 'application is not found' });
+
+    if (check.applicantId != Id)
+      return res
+        .status(400)
+        .send({ message: 'You have not permission to change' });
+    next();
+  } catch (error) {
+    return res.status(500).send({ message: error.message });
+  }
 }
 
-function isValidName(name) {
-  const nameRegex = new RegExp(/(^[a-zA-Z][a-zA-Z\s]{0,20}[a-zA-Z]$)/, 'gm');
+
+
+
+
+
+
+// ----------validations----------//
+
+const isValidName = function (name) {
+  const nameRegex = /^[a-zA-Z ]{2,30}$/;
   return nameRegex.test(name);
-}
+};
 
-module.exports = { authentication, authorization,isValidName ,isValidEmail };
+const isValidEmail = function (email) {
+  const emailRegex =
+    /^[a-z0-9][a-z0-9-_\.]+@([a-z]|[a-z0-9]?[a-z0-9-]+[a-z0-9])\.[a-z0-9]{2,10}(?:\.[a-z]{2,10})?$/;
+  return emailRegex.test(email);
+};
+
+const isValidPassword = function (password) {
+  var passRegex = new RegExp(
+    '^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,15})'
+  );
+  return passRegex.test(password);
+};
+
+module.exports = { authentication, recAuthorization, appAuthorization, isValidName, isValidEmail, isValidPassword };
